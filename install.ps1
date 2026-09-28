@@ -1,21 +1,21 @@
 # =============================================================================
 # Hyber Alias Installer
 # Cross-platform shell alias manager
-# https://github.com/thinhngotony/alias
+# https://github.com/Cosmaxis/alias
 # =============================================================================
 
 $ErrorActionPreference = "Stop"
 
 # Fetch latest version from GitHub releases
 try {
-    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/thinhngotony/alias/releases/latest" -TimeoutSec 5
+    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/Cosmaxis/alias/releases/latest" -TimeoutSec 5
     $Version = $release.tag_name -replace '^v', ''
     if ($Version -notmatch '^\d+\.\d+\.\d+$') {
         throw "Invalid release tag"
     }
 } catch {
     try {
-        $page = Invoke-WebRequest -Uri "https://github.com/thinhngotony/alias/releases/latest" -UseBasicParsing -TimeoutSec 10
+        $page = Invoke-WebRequest -Uri "https://github.com/Cosmaxis/alias/releases/latest" -UseBasicParsing -TimeoutSec 10
         $finalUri = if ($page.BaseResponse.ResponseUri) {
             $page.BaseResponse.ResponseUri.AbsoluteUri
         } else {
@@ -27,7 +27,7 @@ try {
         throw "Failed to determine the latest release; existing aliases were not changed: $_"
     }
 }
-$Repo = "https://raw.githubusercontent.com/thinhngotony/alias/v$Version"
+$Repo = "https://raw.githubusercontent.com/Cosmaxis/alias/v$Version"
 $AliasHome = "$env:USERPROFILE\.alias"
 
 # Check execution policy (skip in CI environments)
@@ -96,7 +96,7 @@ if (!(Test-Path $PROFILE)) {
 
 $ProfileContent = Get-Content $PROFILE -Raw -ErrorAction SilentlyContinue
 if ($null -eq $ProfileContent -or $ProfileContent -notmatch "\.alias\\load\.ps1") {
-    Add-Content -Path $PROFILE -Value "`n# Hyber Alias - https://github.com/thinhngotony/alias"
+    Add-Content -Path $PROFILE -Value "`n# Hyber Alias - https://github.com/Cosmaxis/alias"
     Add-Content -Path $PROFILE -Value "if (Test-Path `"$AliasHome\load.ps1`") { . `"$AliasHome\load.ps1`" }"
     Write-Host "  " -NoNewline; Write-Host "✓" -ForegroundColor Green -NoNewline; Write-Host " Configured $PROFILE" -ForegroundColor DarkGray
 } else {
@@ -135,5 +135,5 @@ Write-Host "  alias-git      " -ForegroundColor Cyan -NoNewline; Write-Host "Git
 Write-Host "  alias-k8s      " -ForegroundColor Cyan -NoNewline; Write-Host "Kubernetes shortcuts (k, kgp...)"
 Write-Host "  alias-add      " -ForegroundColor Cyan -NoNewline; Write-Host "Add custom aliases to categories"
 Write-Host ""
-Write-Host "Documentation  " -ForegroundColor DarkGray -NoNewline; Write-Host "https://github.com/thinhngotony/alias"
+Write-Host "Documentation  " -ForegroundColor DarkGray -NoNewline; Write-Host "https://github.com/Cosmaxis/alias"
 Write-Host ""

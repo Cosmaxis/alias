@@ -27,7 +27,7 @@ By participating in this project, you agree to abide by our [Code of Conduct](CO
 
 ### Reporting Bugs
 
-- Check if the bug has already been reported in [Issues](https://github.com/thinhngotony/alias/issues)
+- Check if the bug has already been reported in [Issues](https://github.com/Cosmaxis/alias/issues)
 - If not, create a new issue using the bug report template
 - Include as much detail as possible (OS, shell, steps to reproduce)
 
@@ -170,8 +170,8 @@ Releases are automated via GitHub Actions when a tag is pushed. Follow these ste
 
 2. **Update version links** at the bottom of CHANGELOG.md:
    ```markdown
-   [Unreleased]: https://github.com/thinhngotony/alias/compare/vX.Y.Z...HEAD
-   [X.Y.Z]: https://github.com/thinhngotony/alias/compare/vPREV...vX.Y.Z
+   [Unreleased]: https://github.com/Cosmaxis/alias/compare/vX.Y.Z...HEAD
+   [X.Y.Z]: https://github.com/Cosmaxis/alias/compare/vPREV...vX.Y.Z
    ```
 
 3. **Commit and push** the changes:

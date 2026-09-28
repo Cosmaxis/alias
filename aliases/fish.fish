@@ -60,7 +60,7 @@ function alias-help
     echo "  ────────────────────────────────────────────────────────────────"
     echo ""
     echo "  💡 Tip   Type alias- + TAB for autocomplete"
-    echo "  📚 Docs  https://github.com/thinhngotony/alias"
+    echo "  📚 Docs  https://github.com/Cosmaxis/alias"
     echo ""
 end
 

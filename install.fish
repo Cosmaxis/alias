@@ -6,18 +6,18 @@
 set ALIAS_HOME "$HOME/.alias"
 
 # Fetch latest version from GitHub releases
-set VERSION (curl -sfS --proto '=https' --connect-timeout 5 --max-time 10 "https://api.github.com/repos/thinhngotony/alias/releases/latest" 2>/dev/null \
+set VERSION (curl -sfS --proto '=https' --connect-timeout 5 --max-time 10 "https://api.github.com/repos/Cosmaxis/alias/releases/latest" 2>/dev/null \
     | grep '"tag_name"' | head -1 | sed 's/.*"tag_name" *: *"//;s/".*//' | sed 's/^v//')
 if not string match -rq '^[0-9]+\.[0-9]+\.[0-9]+$' -- "$VERSION"
     set release_url (curl -fsSL --proto '=https' --proto-redir '=https' --connect-timeout 5 --max-time 10 \
-        -o /dev/null -w '%{url_effective}' "https://github.com/thinhngotony/alias/releases/latest" 2>/dev/null)
+        -o /dev/null -w '%{url_effective}' "https://github.com/Cosmaxis/alias/releases/latest" 2>/dev/null)
     set VERSION (string replace -r '^.*/releases/tag/v([0-9]+\.[0-9]+\.[0-9]+)$' '$1' -- "$release_url")
 end
 if not string match -rq '^[0-9]+\.[0-9]+\.[0-9]+$' -- "$VERSION"
     echo "Failed to determine the latest release; existing aliases were not changed." >&2
     exit 1
 end
-set REPO "https://raw.githubusercontent.com/thinhngotony/alias/v$VERSION"
+set REPO "https://raw.githubusercontent.com/Cosmaxis/alias/v$VERSION"
 
 # Header
 echo ""
@@ -81,7 +81,7 @@ echo "      alias-help     Show all available aliases"
 echo "      alias-git      Git shortcuts"
 echo "      alias-k8s      Kubernetes shortcuts"
 echo ""
-echo "  📚 Docs  https://github.com/thinhngotony/alias"
+echo "  📚 Docs  https://github.com/Cosmaxis/alias"
 echo ""
 
 # Reload

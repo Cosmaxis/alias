@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Documentation
-    url: https://github.com/thinhngotony/alias#readme
+    url: https://github.com/Cosmaxis/alias#readme
     about: Check the README for installation and usage instructions
   - name: Discussions
-    url: https://github.com/thinhngotony/alias/discussions
+    url: https://github.com/Cosmaxis/alias/discussions
     about: Ask questions and share ideas

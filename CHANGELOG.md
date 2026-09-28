@@ -208,22 +208,22 @@ alias-ai  # Show all AI aliases
 
 ```sh
 # Linux/macOS
-curl -sfS https://alias.hyberorbit.com/install | sh
+curl -sfS https://alias.cosmaxis.com/install | sh
 
 # Windows PowerShell
-iwr -useb https://alias.hyberorbit.com/install.ps1 | iex
+iwr -useb https://alias.cosmaxis.com/install.ps1 | iex
 ```
 
-[Unreleased]: https://github.com/thinhngotony/alias/compare/v1.6.0...HEAD
-[1.6.0]: https://github.com/thinhngotony/alias/compare/v1.5.0...v1.6.0
-[1.5.0]: https://github.com/thinhngotony/alias/compare/v1.4.1...v1.5.0
-[1.4.0]: https://github.com/thinhngotony/alias/compare/v1.3.7...v1.4.0
-[1.3.7]: https://github.com/thinhngotony/alias/compare/v1.3.6...v1.3.7
-[1.3.6]: https://github.com/thinhngotony/alias/compare/v1.2.0...v1.3.6
-[1.2.0]: https://github.com/thinhngotony/alias/compare/v1.1.0...v1.2.0
-[1.1.0]: https://github.com/thinhngotony/alias/compare/v1.0.3...v1.1.0
-[1.0.3]: https://github.com/thinhngotony/alias/compare/v1.0.2...v1.0.3
-[1.0.2]: https://github.com/thinhngotony/alias/compare/v1.0.1...v1.0.2
-[1.0.1]: https://github.com/thinhngotony/alias/compare/v1.0.0...v1.0.1
-[1.0.0]: https://github.com/thinhngotony/alias/compare/v1.0.0-rc.1...v1.0.0
-[1.0.0-rc.1]: https://github.com/thinhngotony/alias/releases/tag/v1.0.0-rc.1
+[Unreleased]: https://github.com/Cosmaxis/alias/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/Cosmaxis/alias/compare/v1.5.0...v1.6.0
+[1.5.0]: https://github.com/Cosmaxis/alias/compare/v1.4.1...v1.5.0
+[1.4.0]: https://github.com/Cosmaxis/alias/compare/v1.3.7...v1.4.0
+[1.3.7]: https://github.com/Cosmaxis/alias/compare/v1.3.6...v1.3.7
+[1.3.6]: https://github.com/Cosmaxis/alias/compare/v1.2.0...v1.3.6
+[1.2.0]: https://github.com/Cosmaxis/alias/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/Cosmaxis/alias/compare/v1.0.3...v1.1.0
+[1.0.3]: https://github.com/Cosmaxis/alias/compare/v1.0.2...v1.0.3
+[1.0.2]: https://github.com/Cosmaxis/alias/compare/v1.0.1...v1.0.2
+[1.0.1]: https://github.com/Cosmaxis/alias/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/Cosmaxis/alias/compare/v1.0.0-rc.1...v1.0.0
+[1.0.0-rc.1]: https://github.com/Cosmaxis/alias/releases/tag/v1.0.0-rc.1

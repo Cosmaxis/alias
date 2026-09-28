@@ -34,10 +34,10 @@ if ($env:ALIAS_AUTO_UPDATE -ne "false" -and $AliasVersion -ne "latest" -and -not
                     try {
                         $latest = $null
                         try {
-                            $latest = (Invoke-RestMethod -Uri "https://api.github.com/repos/thinhngotony/alias/releases/latest" -TimeoutSec 5).tag_name
+                            $latest = (Invoke-RestMethod -Uri "https://api.github.com/repos/Cosmaxis/alias/releases/latest" -TimeoutSec 5).tag_name
                         } catch { }
                         if ($latest -notmatch '^v\d+\.\d+\.\d+$') {
-                            $page = Invoke-WebRequest -Uri "https://github.com/thinhngotony/alias/releases/latest" -UseBasicParsing -TimeoutSec 10
+                            $page = Invoke-WebRequest -Uri "https://github.com/Cosmaxis/alias/releases/latest" -UseBasicParsing -TimeoutSec 10
                             $finalUri = if ($page.BaseResponse.ResponseUri) {
                                 $page.BaseResponse.ResponseUri.AbsoluteUri
                             } else {

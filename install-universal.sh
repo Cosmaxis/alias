@@ -8,15 +8,15 @@
 ALIAS_HOME="$HOME/.alias"
 
 # Allow custom repository URL for forks/self-hosting
-ALIAS_REPO_URL="${ALIAS_REPO_URL:-https://raw.githubusercontent.com/thinhngotony/alias}"
+ALIAS_REPO_URL="${ALIAS_REPO_URL:-https://raw.githubusercontent.com/Cosmaxis/alias}"
 
 # Fetch latest version from GitHub releases
-VERSION=$(curl -sfS --proto '=https' --connect-timeout 5 --max-time 10 "https://api.github.com/repos/thinhngotony/alias/releases/latest" 2>/dev/null \
+VERSION=$(curl -sfS --proto '=https' --connect-timeout 5 --max-time 10 "https://api.github.com/repos/Cosmaxis/alias/releases/latest" 2>/dev/null \
     | grep '"tag_name"' | head -1 | sed 's/.*"tag_name" *: *"//;s/".*//' | sed 's/^v//')
 
 if ! printf '%s' "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
     release_url=$(curl -fsSL --proto '=https' --proto-redir '=https' --connect-timeout 5 --max-time 10 \
-        -o /dev/null -w '%{url_effective}' "https://github.com/thinhngotony/alias/releases/latest" 2>/dev/null)
+        -o /dev/null -w '%{url_effective}' "https://github.com/Cosmaxis/alias/releases/latest" 2>/dev/null)
     VERSION=${release_url##*/v}
 fi
 if ! printf '%s' "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
@@ -196,7 +196,7 @@ fi
 # =============================================================================
 if [ "$HAS_BASH" = true ] && [ -f "$HOME/.bashrc" ]; then
     if ! grep -q "/.alias/load.sh" "$HOME/.bashrc" 2>/dev/null; then
-        printf "\n# Hyber Alias - https://github.com/thinhngotony/alias\n" >> "$HOME/.bashrc"
+        printf "\n# Hyber Alias - https://github.com/Cosmaxis/alias\n" >> "$HOME/.bashrc"
         printf "[ -f ~/.alias/load.sh ] && source ~/.alias/load.sh\n" >> "$HOME/.bashrc"
         printf "      %b✓%b Configured %b~/.bashrc%b\n" "$GREEN" "$NC" "$DIM" "$NC"
     else
@@ -209,7 +209,7 @@ fi
 # =============================================================================
 if [ "$HAS_ZSH" = true ] && [ -f "$HOME/.zshrc" ]; then
     if ! grep -q "/.alias/load.sh" "$HOME/.zshrc" 2>/dev/null; then
-        printf "\n# Hyber Alias - https://github.com/thinhngotony/alias\n" >> "$HOME/.zshrc"
+        printf "\n# Hyber Alias - https://github.com/Cosmaxis/alias\n" >> "$HOME/.zshrc"
         printf "[ -f ~/.alias/load.sh ] && source ~/.alias/load.sh\n" >> "$HOME/.zshrc"
         printf "      %b✓%b Configured %b~/.zshrc%b\n" "$GREEN" "$NC" "$DIM" "$NC"
     else
@@ -253,7 +253,7 @@ printf "      %balias-help%b     Show all available aliases\n" "$CYAN" "$NC"
 printf "      %balias-git%b      Git shortcuts\n" "$CYAN" "$NC"
 printf "      %balias-k8s%b      Kubernetes shortcuts\n" "$CYAN" "$NC"
 printf "\n"
-printf "  %b📚 Docs%b  https://github.com/thinhngotony/alias\n" "$DIM" "$NC"
+printf "  %b📚 Docs%b  https://github.com/Cosmaxis/alias\n" "$DIM" "$NC"
 printf "\n"
 printf "%b  ────────────────────────────────────────────────────────────────%b\n" "$DIM" "$NC"
 printf "\n"

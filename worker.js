@@ -7,7 +7,7 @@ export default {
     let version;
     try {
       const release = await fetch(
-        "https://api.github.com/repos/thinhngotony/alias/releases/latest",
+        "https://api.github.com/repos/Cosmaxis/alias/releases/latest",
         {
           headers: { "User-Agent": "hyber-alias-worker" },
           cf: { cacheTtl: 60 },
@@ -22,7 +22,7 @@ export default {
     }
     if (!version) {
       try {
-        const redirect = await fetch("https://github.com/thinhngotony/alias/releases/latest", {
+        const redirect = await fetch("https://github.com/Cosmaxis/alias/releases/latest", {
           redirect: "manual",
           cf: { cacheTtl: 60 },
         });
@@ -32,7 +32,7 @@ export default {
       }
     }
     if (!version) return new Response("Release metadata unavailable", { status: 503 });
-    const base = `https://raw.githubusercontent.com/thinhngotony/alias/${version}`;
+    const base = `https://raw.githubusercontent.com/Cosmaxis/alias/${version}`;
 
     const routes = {
       "/install": `${base}/install-universal.sh`,
@@ -51,16 +51,16 @@ export default {
         `Hyber Alias API v${displayVersion}
 
 Install:
-  Linux/Mac:  curl -sfS https://alias.hyberorbit.com/install | sh
-  Windows:    iwr -useb https://alias.hyberorbit.com/install.ps1 | iex
+  Linux/Mac:  curl -sfS https://alias.cosmaxis.com/install | sh
+  Windows:    iwr -useb https://alias.cosmaxis.com/install.ps1 | iex
 
 Uninstall:
-  Linux/Mac:  curl -sfS https://alias.hyberorbit.com/uninstall | sh
-  Windows:    iwr -useb https://alias.hyberorbit.com/uninstall.ps1 | iex
+  Linux/Mac:  curl -sfS https://alias.cosmaxis.com/uninstall | sh
+  Windows:    iwr -useb https://alias.cosmaxis.com/uninstall.ps1 | iex
 
 Auto-detects: Bash, Zsh, Fish shells
 
-Documentation: https://github.com/thinhngotony/alias
+Documentation: https://github.com/Cosmaxis/alias
 `,
         {
           headers: { "Content-Type": "text/plain" },

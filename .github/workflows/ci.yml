@@ -161,7 +161,7 @@ jobs:
           done
           printf '%s\n' "$url" >> "$HOME/.alias/fetches"
           case "$url" in
-            https://github.com/thinhngotony/alias/releases/latest) printf '%s\n' 'https://github.com/thinhngotony/alias/releases/tag/v2.0.0' ;;
+            https://github.com/Cosmaxis/alias/releases/latest) printf '%s\n' 'https://github.com/Cosmaxis/alias/releases/tag/v2.0.0' ;;
             */releases/latest) [ ! -f "$HOME/.alias/api-denied" ] || exit 22; printf '%s\n' '{"tag_name":"v2.0.0"}' ;;
             */aliases/ai.sh) [ ! -f "$HOME/.alias/fail-download" ] && cp "$GITHUB_WORKSPACE/aliases/ai.sh" "$out" ;;
             */aliases/*.sh) cp "$GITHUB_WORKSPACE/aliases/${url##*/}" "$out" ;;
@@ -235,7 +235,7 @@ jobs:
           until [ -f "$HOME/.alias/unblock" ]; do sleep 0.05; done
           case "$url" in
             https://api.github.com/*) exit 22 ;;
-            https://github.com/*) printf '%s\n' 'https://github.com/thinhngotony/alias/releases/tag/v2.0.0' ;;
+            https://github.com/*) printf '%s\n' 'https://github.com/Cosmaxis/alias/releases/tag/v2.0.0' ;;
             *) exit 1 ;;
           esac
           SH
@@ -280,13 +280,13 @@ jobs:
               if (!webAvailable) return new Response("", { status: 503 });
               return new Response(null, {
                 status: 302,
-                headers: { location: "https://github.com/thinhngotony/alias/releases/tag/v2.0.0" },
+                headers: { location: "https://github.com/Cosmaxis/alias/releases/tag/v2.0.0" },
               });
             }
-            assert.equal(url, "https://raw.githubusercontent.com/thinhngotony/alias/v2.0.0/install-universal.sh");
+            assert.equal(url, "https://raw.githubusercontent.com/Cosmaxis/alias/v2.0.0/install-universal.sh");
             return new Response("# tagged installer");
           };
-          const request = new Request("https://alias.hyberorbit.com/install");
+          const request = new Request("https://alias.cosmaxis.com/install");
           const installed = await worker.fetch(request);
           assert.equal(installed.status, 200);
           assert.equal(await installed.text(), "# tagged installer");
@@ -508,10 +508,10 @@ jobs:
           function Invoke-RestMethod { throw "API rate limit" }
           function Invoke-WebRequest {
             param([string]$Uri, [string]$OutFile, [switch]$UseBasicParsing, [int]$TimeoutSec)
-            if ($Uri -eq "https://github.com/thinhngotony/alias/releases/latest") {
-              return [pscustomobject]@{ BaseResponse = [pscustomobject]@{ ResponseUri = [uri]"https://github.com/thinhngotony/alias/releases/tag/v2.0.0" } }
+            if ($Uri -eq "https://github.com/Cosmaxis/alias/releases/latest") {
+              return [pscustomobject]@{ BaseResponse = [pscustomobject]@{ ResponseUri = [uri]"https://github.com/Cosmaxis/alias/releases/tag/v2.0.0" } }
             }
-            if ($Uri -eq "https://raw.githubusercontent.com/thinhngotony/alias/v2.0.0/load.ps1") {
+            if ($Uri -eq "https://raw.githubusercontent.com/Cosmaxis/alias/v2.0.0/load.ps1") {
               Copy-Item .\load.ps1 $OutFile
               return
             }
@@ -636,12 +636,12 @@ jobs:
 
             **Linux / macOS**
             ```sh
-            curl -sfS https://alias.hyberorbit.com/install | sh
+            curl -sfS https://alias.cosmaxis.com/install | sh
             ```
 
             **Windows PowerShell**
             ```powershell
-            iwr -useb https://alias.hyberorbit.com/install.ps1 | iex
+            iwr -useb https://alias.cosmaxis.com/install.ps1 | iex
             ```
 
             ### Features
@@ -652,6 +652,6 @@ jobs:
             - Input validation prevents injection attacks
             - Local aliases at shell startup; daily background release checks
 
-            **Full Changelog**: https://github.com/thinhngotony/alias/compare/v1.0.0...${{ steps.version.outputs.VERSION }}
+            **Full Changelog**: https://github.com/Cosmaxis/alias/compare/v1.0.0...${{ steps.version.outputs.VERSION }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

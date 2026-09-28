@@ -1,7 +1,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/platforms-Linux%20%7C%20macOS%20%7C%20Windows-blue" alt="Platforms">
   <img src="https://img.shields.io/badge/shells-Bash%20%7C%20Zsh%20%7C%20Fish%20%7C%20PowerShell-green" alt="Shells">
-  <img src="https://img.shields.io/github/license/thinhngotony/alias" alt="License">
+  <img src="https://img.shields.io/github/license/Cosmaxis/alias" alt="License">
   <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome">
 </p>
 
@@ -23,13 +23,13 @@
 **Linux / macOS (Bash, Zsh, Fish, sh)**
 
 ```sh
-curl -sfS https://alias.hyberorbit.com/install | sh
+curl -sfS https://alias.cosmaxis.com/install | sh
 ```
 
 **Windows PowerShell**
 
 ```powershell
-iwr -useb https://alias.hyberorbit.com/install.ps1 | iex
+iwr -useb https://alias.cosmaxis.com/install.ps1 | iex
 ```
 
 > Open a new terminal after install, or run your shell activation command (e.g. `source ~/.bashrc`, `source ~/.zshrc`, or `source ~/.config/fish/conf.d/hyber-alias.fish`).
@@ -42,7 +42,7 @@ alias | grep -E "^g|^k"
 
 You should see aliases like `ga`, `gb`, `gs`, `k`, `kgp`, etc.
 
-If the install endpoint is unavailable, open the [latest tagged release](https://github.com/thinhngotony/alias/releases/latest) and run its `install-universal.sh` (Linux/macOS) or `install.ps1` (Windows). Do not install a moving `main` installer against an older tagged release.
+If the install endpoint is unavailable, open the [latest tagged release](https://github.com/Cosmaxis/alias/releases/latest) and run its `install-universal.sh` (Linux/macOS) or `install.ps1` (Windows). Do not install a moving `main` installer against an older tagged release.
 
 ---
 
@@ -268,12 +268,12 @@ Installed aliases never refresh during shell startup. Bash/Zsh and PowerShell sh
 
 ```sh
 # Linux/macOS
-curl -sfS https://alias.hyberorbit.com/install | sh
+curl -sfS https://alias.cosmaxis.com/install | sh
 ```
 
 ```powershell
 # Windows PowerShell
-iwr -useb https://alias.hyberorbit.com/install.ps1 | iex
+iwr -useb https://alias.cosmaxis.com/install.ps1 | iex
 ```
 
 Set `ALIAS_AUTO_UPDATE=false` to disable background release checks on Bash/Zsh and PowerShell. Existing aliases remain available offline.
@@ -285,13 +285,13 @@ Set `ALIAS_AUTO_UPDATE=false` to disable background release checks on Bash/Zsh a
 **Linux / macOS**
 
 ```sh
-curl -sfS https://alias.hyberorbit.com/uninstall | sh
+curl -sfS https://alias.cosmaxis.com/uninstall | sh
 ```
 
 **Windows PowerShell**
 
 ```powershell
-iwr -useb https://alias.hyberorbit.com/uninstall.ps1 | iex
+iwr -useb https://alias.cosmaxis.com/uninstall.ps1 | iex
 ```
 
 ---
@@ -346,15 +346,15 @@ Or open a new terminal.
 **Linux/macOS:**
 
 ```sh
-curl -sfS https://alias.hyberorbit.com/uninstall | sh
-curl -sfS https://alias.hyberorbit.com/install | sh
+curl -sfS https://alias.cosmaxis.com/uninstall | sh
+curl -sfS https://alias.cosmaxis.com/install | sh
 ```
 
 **Windows:**
 
 ```powershell
-iwr -useb https://alias.hyberorbit.com/uninstall.ps1 | iex
-iwr -useb https://alias.hyberorbit.com/install.ps1 | iex
+iwr -useb https://alias.cosmaxis.com/uninstall.ps1 | iex
+iwr -useb https://alias.cosmaxis.com/install.ps1 | iex
 ```
 
 </details>
@@ -397,5 +397,5 @@ MIT License - see [LICENSE](LICENSE) for details.
 ---
 
 <p align="center">
-  <sub>Built with care by <a href="https://hyberorbit.com">Hyber Orbit</a></sub>
+  <sub>Built with care by <a href="https://cosmaxis.com">Cosmaxis</a></sub>
 </p>

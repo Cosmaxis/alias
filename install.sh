@@ -4,21 +4,21 @@ set -e
 # =============================================================================
 # Hyber Alias Installer
 # Cross-platform shell alias manager
-# https://github.com/thinhngotony/alias
+# https://github.com/Cosmaxis/alias
 # =============================================================================
 
 ALIAS_HOME="$HOME/.alias"
 
 # Allow custom repository URL for forks/self-hosting
-ALIAS_REPO_URL="${ALIAS_REPO_URL:-https://raw.githubusercontent.com/thinhngotony/alias}"
+ALIAS_REPO_URL="${ALIAS_REPO_URL:-https://raw.githubusercontent.com/Cosmaxis/alias}"
 
 # Fetch latest version from GitHub releases
-VERSION=$(curl -sfS --proto '=https' --connect-timeout 5 --max-time 10 "https://api.github.com/repos/thinhngotony/alias/releases/latest" 2>/dev/null \
+VERSION=$(curl -sfS --proto '=https' --connect-timeout 5 --max-time 10 "https://api.github.com/repos/Cosmaxis/alias/releases/latest" 2>/dev/null \
     | grep '"tag_name"' | head -1 | sed 's/.*"tag_name" *: *"//;s/".*//' | sed 's/^v//')
 
 if ! printf '%s' "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
     release_url=$(curl -fsSL --proto '=https' --proto-redir '=https' --connect-timeout 5 --max-time 10 \
-        -o /dev/null -w '%{url_effective}' "https://github.com/thinhngotony/alias/releases/latest" 2>/dev/null)
+        -o /dev/null -w '%{url_effective}' "https://github.com/Cosmaxis/alias/releases/latest" 2>/dev/null)
     VERSION=${release_url##*/v}
 fi
 if ! printf '%s' "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
@@ -189,7 +189,7 @@ if [ "$HAS_BASH" = true ] && [ -f "$HOME/.bashrc" ]; then
     if ! grep -q "/.alias/load.sh" "$HOME/.bashrc" 2>/dev/null; then
         {
             echo ""
-            echo "# Hyber Alias - https://github.com/thinhngotony/alias"
+            echo "# Hyber Alias - https://github.com/Cosmaxis/alias"
             echo "[ -f ~/.alias/load.sh ] && source ~/.alias/load.sh"
         } >> "$HOME/.bashrc"
         echo -e "  ${CHECK} Configured ${DIM}~/.bashrc${NC}"
@@ -203,7 +203,7 @@ if [ "$HAS_ZSH" = true ] && [ -f "$HOME/.zshrc" ]; then
     if ! grep -q "/.alias/load.sh" "$HOME/.zshrc" 2>/dev/null; then
         {
             echo ""
-            echo "# Hyber Alias - https://github.com/thinhngotony/alias"
+            echo "# Hyber Alias - https://github.com/Cosmaxis/alias"
             echo "[ -f ~/.alias/load.sh ] && source ~/.alias/load.sh"
         } >> "$HOME/.zshrc"
         echo -e "  ${CHECK} Configured ${DIM}~/.zshrc${NC}"
@@ -247,7 +247,7 @@ echo -e "  ${CYAN}alias-git${NC}      Git shortcuts (ga, gc, gs, gph...)"
 echo -e "  ${CYAN}alias-k8s${NC}      Kubernetes shortcuts (k, kgp, kgs...)"
 echo -e "  ${CYAN}alias-add${NC}      Add custom aliases to categories"
 echo ""
-echo -e "${DIM}Documentation${NC}  https://github.com/thinhngotony/alias"
+echo -e "${DIM}Documentation${NC}  https://github.com/Cosmaxis/alias"
 echo ""
 
 # Print activation for ALL configured shells

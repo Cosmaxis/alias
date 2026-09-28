@@ -9,7 +9,7 @@
 ALIAS_HOME="${HOME}/.alias"
 
 # Allow custom repository URL for forks/self-hosting
-ALIAS_REPO_URL="${ALIAS_REPO_URL:-https://raw.githubusercontent.com/thinhngotony/alias}"
+ALIAS_REPO_URL="${ALIAS_REPO_URL:-https://raw.githubusercontent.com/Cosmaxis/alias}"
 
 # Source environment
 # shellcheck source=/dev/null
@@ -37,7 +37,7 @@ _alias_check_for_updates() {
     local available now lock_mtime lock="$ALIAS_HOME/.update-check.lock"
     [ "${ALIAS_AUTO_UPDATE:-true}" = "false" ] && return 0
     [ "$ALIAS_VERSION" = "latest" ] && return 0
-    [ "$ALIAS_REPO_URL" = "https://raw.githubusercontent.com/thinhngotony/alias" ] || return 0
+    [ "$ALIAS_REPO_URL" = "https://raw.githubusercontent.com/Cosmaxis/alias" ] || return 0
 
     if [ -f "$ALIAS_HOME/.update-available" ]; then
         IFS= read -r available < "$ALIAS_HOME/.update-available"
@@ -68,11 +68,11 @@ _alias_check_for_updates() {
     # shellcheck disable=SC2016
     (nohup sh -c '
         latest=$(curl -sfS --proto "=https" --connect-timeout 3 --max-time 5 \
-            https://api.github.com/repos/thinhngotony/alias/releases/latest 2>/dev/null |
+            https://api.github.com/repos/Cosmaxis/alias/releases/latest 2>/dev/null |
             sed -n "s/.*\"tag_name\"[[:space:]]*:[[:space:]]*\"v\\([0-9][0-9.]*\\)\".*/\\1/p")
         if [ -z "$latest" ]; then
             release_url=$(curl -fsSL --proto "=https" --proto-redir "=https" --connect-timeout 3 --max-time 10 \
-                -o /dev/null -w "%{url_effective}" https://github.com/thinhngotony/alias/releases/latest 2>/dev/null)
+                -o /dev/null -w "%{url_effective}" https://github.com/Cosmaxis/alias/releases/latest 2>/dev/null)
             latest=${release_url##*/v}
         fi
         printf "%s" "$latest" | grep -Eq "^[0-9]+\\.[0-9]+\\.[0-9]+$" || exit 0
@@ -495,7 +495,7 @@ alias-help() {
     echo ""
     echo -e "${DIM}  ────────────────────────────────────────────────────────────────${NC}"
     echo ""
-    echo -e "  ${DIM}📚 Docs${NC}  https://github.com/thinhngotony/alias"
+    echo -e "  ${DIM}📚 Docs${NC}  https://github.com/Cosmaxis/alias"
     echo -e "  ${DIM}💡 Tip${NC}   Type ${CYAN}alias-${NC} + ${BOLD}TAB${NC} for autocomplete"
     echo ""
 }

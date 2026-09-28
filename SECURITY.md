@@ -14,7 +14,7 @@ We take security seriously. If you discover a security vulnerability, please rep
 ### How to Report
 
 1. **Do NOT** create a public GitHub issue for security vulnerabilities
-2. Email the maintainers directly at: [security@hyberorbit.com](mailto:security@hyberorbit.com)
+2. Email the maintainers directly at: [security@cosmaxis.com](mailto:security@cosmaxis.com)
 3. Include as much detail as possible:
    - Description of the vulnerability
    - Steps to reproduce
@@ -44,13 +44,13 @@ We take security seriously. If you discover a security vulnerability, please rep
 1. **Verify the source**: Only install from official sources:
 
    ```sh
-   curl -sfS https://alias.hyberorbit.com/install | sh
+   curl -sfS https://alias.cosmaxis.com/install | sh
    ```
 
 2. **Review before running**: You can inspect the install script:
 
    ```bash
-   curl -s https://alias.hyberorbit.com/install | less
+   curl -s https://alias.cosmaxis.com/install | less
    ```
 
 3. **Check file integrity**: After installation, verify files:
