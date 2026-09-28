@@ -42,18 +42,7 @@ alias | grep -E "^g|^k"
 
 You should see aliases like `ga`, `gb`, `gs`, `k`, `kgp`, etc.
 
-<details>
-<summary><strong>Alternative URL (if the above doesn't work)</strong></summary>
-
-```sh
-# Linux/macOS
-curl -sfS https://raw.githubusercontent.com/thinhngotony/alias/main/install-universal.sh | sh
-
-# Windows PowerShell
-iwr -useb https://raw.githubusercontent.com/thinhngotony/alias/main/install.ps1 | iex
-```
-
-</details>
+If the install endpoint is unavailable, open the [latest tagged release](https://github.com/thinhngotony/alias/releases/latest) and run its `install-universal.sh` (Linux/macOS) or `install.ps1` (Windows). Do not install a moving `main` installer against an older tagged release.
 
 ---
 
@@ -64,7 +53,7 @@ iwr -useb https://raw.githubusercontent.com/thinhngotony/alias/main/install.ps1 
 | **Zero Config**    | Auto-detects OS, shell, and environment          |
 | **Cross-Platform** | Linux, macOS, Windows, WSL, Docker, Kubernetes   |
 | **Instant Setup**  | Installs in under 5 seconds                      |
-| **Fresh Cache**   | Reuses aliases for 5 minutes; checks loader updates hourly |
+| **Offline Startup** | Sources installed aliases locally; checks for releases daily without blocking the shell |
 | **Customizable**   | Add your own aliases that persist across updates |
 | **Offline Ready**  | Works without internet after first install       |
 | **Discoverable**   | Type `alias-` + TAB for category autocomplete    |
@@ -197,7 +186,7 @@ alias-remove gpt
 alias-remove ai gpt
 ```
 
-The search shows each match's definition, category, and source file before asking for confirmation. Removing a system alias edits the local cache; it returns when that cache refreshes.
+The search shows each match's definition, category, and source file before asking for confirmation. Removing a system alias edits the installed release locally; a newer release restores it.
 
 ### Manual Creation
 
@@ -238,10 +227,10 @@ function dps { docker ps $args }
 ## How It Works
 
 ```
-1. Install script downloads loader to ~/.alias/
-2. Adds source line to shell config (.bashrc / $PROFILE)
-3. Linux/macOS loader reuses cached alias modules for five minutes and checks for loader updates hourly
-4. Custom aliases in ~/.alias/custom/ are loaded last
+1. Installer downloads the loader and all alias modules from one immutable release tag.
+2. It activates the release after every download succeeds and adds the loader to the shell config.
+3. Bash/Zsh startup sources local modules only; Bash/Zsh and PowerShell check for new releases once a day in the background and show a notice when one is found.
+4. Custom aliases in ~/.alias/custom/ are loaded last.
 ```
 
 **Directory structure after install:**
@@ -250,8 +239,9 @@ function dps { docker ps $args }
 ~/.alias/
 ├── load.sh       # Loader (Linux/macOS)
 ├── load.ps1      # Loader (Windows)
-├── env.sh        # Environment config
-├── cache/        # Downloaded alias modules
+├── env.sh        # Active release version
+├── releases/     # Complete, versioned Linux/macOS alias modules
+├── cache/        # Legacy cache, used until the next installer upgrade
 ├── custom/       # Your custom aliases (*.sh)
 └── .secrets/     # Encrypted secrets (AES-256-CBC)
 ```
@@ -264,8 +254,8 @@ Hyber Alias follows security best practices:
 
 - **Input validation**: Custom category and alias names are restricted to alphanumeric characters, hyphens, and underscores. Search-only support for built-in dotted aliases never uses the name as a path.
 - **Encrypted secrets**: Secrets are stored using AES-256-CBC encryption with PBKDF2 key derivation via OpenSSL (not base64).
-- **Atomic file operations**: Downloads and updates use temporary files (`mktemp`) with atomic moves to prevent corruption.
-- **Race condition protection**: Self-updates use directory-based locking and hourly rate limiting to prevent concurrent modification.
+- **Staged releases**: Linux/macOS installers download every tagged file before switching the active Bash/Zsh version; a failed download leaves the installed version intact.
+- **Rate-limited checks**: Bash/Zsh and PowerShell check release metadata at most daily without downloading executable code at shell startup.
 - **Symlink protection**: Custom alias loading skips symbolic links to prevent symlink attacks.
 - **Secure deletion**: Secret removal uses `shred` when available for secure file erasure.
 - **No `exec` in installers**: Installation scripts print activation instructions instead of forcing shell replacement.
@@ -274,18 +264,19 @@ Hyber Alias follows security best practices:
 
 ## Updating
 
-Linux/macOS aliases refresh from the network at most every five minutes. The loader checks for loader updates once per hour.
+Installed aliases never refresh during shell startup. Bash/Zsh and PowerShell show an update notice after a daily background release check; Fish does not check automatically. To upgrade, re-run the installer:
 
-**Force an alias refresh:**
-
-```bash
+```sh
 # Linux/macOS
-rm -rf ~/.alias/cache
-source ~/.alias/load.sh
-
-# Windows
-. ~\.alias\load.ps1
+curl -sfS https://alias.hyberorbit.com/install | sh
 ```
+
+```powershell
+# Windows PowerShell
+iwr -useb https://alias.hyberorbit.com/install.ps1 | iex
+```
+
+Set `ALIAS_AUTO_UPDATE=false` to disable background release checks on Bash/Zsh and PowerShell. Existing aliases remain available offline.
 
 ---
 
