@@ -3,8 +3,8 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
-    // Fetch latest version tag from GitHub API
-    let version = "latest";
+    // Release metadata may be rate-limited on the API; the web redirect is a second source.
+    let version;
     try {
       const release = await fetch(
         "https://api.github.com/repos/thinhngotony/alias/releases/latest",
@@ -15,16 +15,24 @@ export default {
       );
       if (release.ok) {
         const data = await release.json();
-        version = data.tag_name || "latest";
+        if (/^v\d+\.\d+\.\d+$/.test(data.tag_name)) version = data.tag_name;
       }
     } catch {
-      // fall through with 'latest'
+      // Try the release redirect if the API is unavailable.
     }
-
-    // Use tag-based URL for immutable CDN content (no stale cache)
-    // Fall back to main branch if version detection failed
-    const ref = version !== "latest" ? version : "main";
-    const base = `https://raw.githubusercontent.com/thinhngotony/alias/${ref}`;
+    if (!version) {
+      try {
+        const redirect = await fetch("https://github.com/thinhngotony/alias/releases/latest", {
+          redirect: "manual",
+          cf: { cacheTtl: 60 },
+        });
+        version = redirect.headers.get("location")?.match(/\/releases\/tag\/(v\d+\.\d+\.\d+)$/)?.[1];
+      } catch {
+        // Never serve mutable main when the release cannot be resolved.
+      }
+    }
+    if (!version) return new Response("Release metadata unavailable", { status: 503 });
+    const base = `https://raw.githubusercontent.com/thinhngotony/alias/${version}`;
 
     const routes = {
       "/install": `${base}/install-universal.sh`,

@@ -70,7 +70,12 @@ _alias_check_for_updates() {
         latest=$(curl -sfS --proto "=https" --connect-timeout 3 --max-time 5 \
             https://api.github.com/repos/thinhngotony/alias/releases/latest 2>/dev/null |
             sed -n "s/.*\"tag_name\"[[:space:]]*:[[:space:]]*\"v\\([0-9][0-9.]*\\)\".*/\\1/p")
-        [ -n "$latest" ] || exit 0
+        if [ -z "$latest" ]; then
+            release_url=$(curl -fsSL --proto "=https" --proto-redir "=https" --connect-timeout 3 --max-time 10 \
+                -o /dev/null -w "%{url_effective}" https://github.com/thinhngotony/alias/releases/latest 2>/dev/null)
+            latest=${release_url##*/v}
+        fi
+        printf "%s" "$latest" | grep -Eq "^[0-9]+\\.[0-9]+\\.[0-9]+$" || exit 0
         marker="$HOME/.alias/.update-available"
         if [ "$latest" = "$1" ]; then
             rm -f "$marker"

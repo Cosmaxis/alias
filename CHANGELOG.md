@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bash/Zsh and PowerShell check release metadata daily in the background and notify users; code updates require re-running the installer.
 - Linux/macOS installers stage complete tagged releases and activate them only after all required downloads succeed. Windows installs its loader from the same release tag as its version marker.
 
+### Fixed
+
+- Installers and release checks fall back to GitHub's latest-release redirect when the unauthenticated API is rate-limited; the installer endpoint fails closed rather than serving mutable `main` if neither source resolves.
+
 ## [1.5.0] - 2026-09-25
 
 ### Added

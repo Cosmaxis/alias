@@ -32,8 +32,20 @@ if ($env:ALIAS_AUTO_UPDATE -ne "false" -and $AliasVersion -ne "latest" -and -not
                 Start-Job -ArgumentList $AliasHome, $AliasVersion -ScriptBlock {
                     param($homeDir, $installed)
                     try {
-                        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/thinhngotony/alias/releases/latest" -TimeoutSec 5
-                        if ($release.tag_name -match '^v(\d+\.\d+\.\d+)$') {
+                        $latest = $null
+                        try {
+                            $latest = (Invoke-RestMethod -Uri "https://api.github.com/repos/thinhngotony/alias/releases/latest" -TimeoutSec 5).tag_name
+                        } catch { }
+                        if ($latest -notmatch '^v\d+\.\d+\.\d+$') {
+                            $page = Invoke-WebRequest -Uri "https://github.com/thinhngotony/alias/releases/latest" -UseBasicParsing -TimeoutSec 10
+                            $finalUri = if ($page.BaseResponse.ResponseUri) {
+                                $page.BaseResponse.ResponseUri.AbsoluteUri
+                            } else {
+                                $page.BaseResponse.RequestMessage.RequestUri.AbsoluteUri
+                            }
+                            if ($finalUri -match '/releases/tag/v(\d+\.\d+\.\d+)$') { $latest = "v$($Matches[1])" }
+                        }
+                        if ($latest -match '^v(\d+\.\d+\.\d+)$') {
                             $marker = Join-Path $homeDir ".update-available"
                             if ($Matches[1] -eq $installed) {
                                 Remove-Item $marker -Force -ErrorAction SilentlyContinue

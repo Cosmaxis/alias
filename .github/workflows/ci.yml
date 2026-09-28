@@ -161,7 +161,8 @@ jobs:
           done
           printf '%s\n' "$url" >> "$HOME/.alias/fetches"
           case "$url" in
-            */releases/latest) printf '%s\n' '{"tag_name":"v2.0.0"}' ;;
+            https://github.com/thinhngotony/alias/releases/latest) printf '%s\n' 'https://github.com/thinhngotony/alias/releases/tag/v2.0.0' ;;
+            */releases/latest) [ ! -f "$HOME/.alias/api-denied" ] || exit 22; printf '%s\n' '{"tag_name":"v2.0.0"}' ;;
             */aliases/ai.sh) [ ! -f "$HOME/.alias/fail-download" ] && cp "$GITHUB_WORKSPACE/aliases/ai.sh" "$out" ;;
             */aliases/*.sh) cp "$GITHUB_WORKSPACE/aliases/${url##*/}" "$out" ;;
             */aliases/fish.fish) cp "$GITHUB_WORKSPACE/aliases/fish.fish" "$out" ;;
@@ -210,6 +211,9 @@ jobs:
             source "$HOME/.alias/load.sh"
             [ "$HYBER_VERSION" = "2.0.0" ] && alias ga >/dev/null
           ' || { echo "FAIL: clean install did not load aliases"; exit 1; }
+          touch "$fresh_home/.alias/api-denied"
+          HOME="$fresh_home" PATH="$fake_bin:$PATH" sh install-universal.sh >/dev/null || { echo "FAIL: API limit blocked reinstall"; exit 1; }
+          HOME="$fresh_home" PATH="$fake_bin:$PATH" bash install.sh >/dev/null || { echo "FAIL: API limit blocked bash installer"; exit 1; }
           echo "PASS: only a complete release is activated"
 
       - name: Test daily release discovery does not block startup
@@ -222,9 +226,18 @@ jobs:
           printf '%s\n' "alias cached='true'" > "$test_home/.alias/cache/git.sh"
           cat > "$fake_bin/curl" <<'SH'
           #!/bin/sh
+          url=""
+          while [ "$#" -gt 0 ]; do
+            case "$1" in http*) url="$1" ;; esac
+            shift
+          done
           printf '%s\n' fetched >> "$HOME/.alias/fetches"
           until [ -f "$HOME/.alias/unblock" ]; do sleep 0.05; done
-          printf '%s\n' '{"tag_name":"v2.0.0"}'
+          case "$url" in
+            https://api.github.com/*) exit 22 ;;
+            https://github.com/*) printf '%s\n' 'https://github.com/thinhngotony/alias/releases/tag/v2.0.0' ;;
+            *) exit 1 ;;
+          esac
           SH
           chmod +x "$fake_bin/curl"
 
@@ -245,8 +258,44 @@ jobs:
             *v2.0.0*v1.0.0*) ;;
             *) echo "FAIL: new release was not announced"; exit 1 ;;
           esac
-          [ "$(wc -l < "$test_home/.alias/fetches" | tr -d ' ')" -eq 1 ] || { echo "FAIL: update check repeated"; exit 1; }
+          [ "$(wc -l < "$test_home/.alias/fetches" | tr -d ' ')" -eq 2 ] || { echo "FAIL: update check repeated"; exit 1; }
           echo "PASS: daily check is nonblocking and rate-limited"
+
+      - name: Test installer routing when release API is unavailable
+        run: |
+          node --input-type=module <<'JS'
+          import assert from "node:assert/strict";
+          import { readFileSync } from "node:fs";
+
+          const source = readFileSync("worker.js", "utf8");
+          const { default: worker } = await import(`data:text/javascript,${encodeURIComponent(source)}`);
+          let webAvailable = true;
+          let apiThrows = false;
+          globalThis.fetch = async (url) => {
+            if (url.startsWith("https://api.github.com/")) {
+              if (apiThrows) throw new Error("API unavailable");
+              return new Response("", { status: 403 });
+            }
+            if (url.startsWith("https://github.com/")) {
+              if (!webAvailable) return new Response("", { status: 503 });
+              return new Response(null, {
+                status: 302,
+                headers: { location: "https://github.com/thinhngotony/alias/releases/tag/v2.0.0" },
+              });
+            }
+            assert.equal(url, "https://raw.githubusercontent.com/thinhngotony/alias/v2.0.0/install-universal.sh");
+            return new Response("# tagged installer");
+          };
+          const request = new Request("https://alias.hyberorbit.com/install");
+          const installed = await worker.fetch(request);
+          assert.equal(installed.status, 200);
+          assert.equal(await installed.text(), "# tagged installer");
+          apiThrows = true;
+          assert.equal((await worker.fetch(request)).status, 200);
+          webAvailable = false;
+          assert.equal((await worker.fetch(request)).status, 503);
+          console.log("PASS: installer stays pinned or fails closed");
+          JS
 
       - name: Test secrets encryption round-trip
         run: |
@@ -452,6 +501,31 @@ jobs:
           if (-not (Test-Path ~\.alias\custom)) { throw "custom directory not found" }
           Write-Host "PASS: Windows installation"
 
+      - name: Test Windows install when release API is rate-limited
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          function Invoke-RestMethod { throw "API rate limit" }
+          function Invoke-WebRequest {
+            param([string]$Uri, [string]$OutFile, [switch]$UseBasicParsing, [int]$TimeoutSec)
+            if ($Uri -eq "https://github.com/thinhngotony/alias/releases/latest") {
+              return [pscustomobject]@{ BaseResponse = [pscustomobject]@{ ResponseUri = [uri]"https://github.com/thinhngotony/alias/releases/tag/v2.0.0" } }
+            }
+            if ($Uri -eq "https://raw.githubusercontent.com/thinhngotony/alias/v2.0.0/load.ps1") {
+              Copy-Item .\load.ps1 $OutFile
+              return
+            }
+            throw "Unexpected URL: $Uri"
+          }
+          $env:SKIP_POLICY_CHECK = "1"
+          . .\install.ps1
+          . "$env:USERPROFILE\.alias\env.ps1"
+          if ($env:HYBER_VERSION -ne "2.0.0") { throw "Wrong installed release" }
+          $env:ALIAS_AUTO_UPDATE = "false"
+          . "$env:USERPROFILE\.alias\load.ps1"
+          if (-not (Get-Command gs -ErrorAction SilentlyContinue)) { throw "Aliases were not loaded" }
+          Write-Host "PASS: Windows installed the tagged loader"
+
   test-install-fish:
     name: Test Install (fish shell)
     runs-on: ubuntu-latest
@@ -479,6 +553,9 @@ jobs:
           # Verify bash was also configured (multi-shell install)
           test -f ~/.alias/load.sh || { echo "FAIL: bash loader not installed"; exit 1; }
           echo "PASS: bash loader also installed"
+
+      - name: Test standalone fish installer uses a tagged release
+        run: fish -n install.fish && fish install.fish
 
       - name: Test fish aliases load correctly
         run: |
