@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-09-28
+
+### Changed
+
+- Bash/Zsh shell startup loads pinned aliases locally instead of re-downloading unchanged release files every five minutes.
+- Bash/Zsh and PowerShell check release metadata daily in the background and notify users; code updates require re-running the installer.
+- Linux/macOS installers stage complete tagged releases and activate them only after all required downloads succeed. Windows installs its loader from the same release tag as its version marker.
+
 ## [1.5.0] - 2026-09-25
 
 ### Added
@@ -202,7 +210,8 @@ curl -sfS https://alias.hyberorbit.com/install | sh
 iwr -useb https://alias.hyberorbit.com/install.ps1 | iex
 ```
 
-[Unreleased]: https://github.com/thinhngotony/alias/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/thinhngotony/alias/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/thinhngotony/alias/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/thinhngotony/alias/compare/v1.4.1...v1.5.0
 [1.4.0]: https://github.com/thinhngotony/alias/compare/v1.3.7...v1.4.0
 [1.3.7]: https://github.com/thinhngotony/alias/compare/v1.3.6...v1.3.7

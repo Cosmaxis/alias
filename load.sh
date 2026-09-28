@@ -16,203 +16,83 @@ ALIAS_REPO_URL="${ALIAS_REPO_URL:-https://raw.githubusercontent.com/thinhngotony
 [ -f "$ALIAS_HOME/env.sh" ] && source "$ALIAS_HOME/env.sh"
 export ALIAS_VERSION="${HYBER_VERSION:-latest}"
 
-# Use tag-based URL for immutable CDN content, fall back to main
-if [ "$ALIAS_VERSION" != "latest" ]; then
-    REPO="${ALIAS_REPO_URL}/v${ALIAS_VERSION}"
-else
-    REPO="${ALIAS_REPO_URL}/main"
-fi
-# Avoid network work on every shell startup.
-_ALIAS_CACHE_TTL=300
-_ALIAS_UPDATE_INTERVAL=3600
 
+# The installer pins all modules to one release; shell startup only reads local files.
+_ALIAS_UPDATE_INTERVAL=86400
 
-# =============================================================================
-# Self-update loader (runs in background at most once per hour)
-# Uses mktemp for safe temp files and mkdir-based locking to prevent races
-# Set ALIAS_AUTO_UPDATE=false to disable auto-updates
-# =============================================================================
 _alias_file_mtime() {
-    local file="$1"
-    stat -c %Y "$file" 2>/dev/null || stat -f %m "$file" 2>/dev/null
-}
-
-_alias_file_age() {
-    local file="$1"
-    local now mtime
-    [ -f "$file" ] || return 1
-    now=$(date +%s) || return 1
-    mtime=$(_alias_file_mtime "$file") || return 1
-    printf '%s\n' "$((now - mtime))"
+    stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null
 }
 
 _alias_update_check_due() {
     local marker="$ALIAS_HOME/.update-check"
-    local age
-    if [ ! -f "$marker" ]; then
-        return 0
-    fi
-    age=$(_alias_file_age "$marker") || return 0
-    [ "$age" -ge "$_ALIAS_UPDATE_INTERVAL" ]
+    local now mtime
+    [ -f "$marker" ] || return 0
+    now=$(date +%s) || return 0
+    mtime=$(_alias_file_mtime "$marker") || return 0
+    [ "$((now - mtime))" -ge "$_ALIAS_UPDATE_INTERVAL" ]
 }
 
-_alias_self_update() {
-    local check_lock="$ALIAS_HOME/.update-check.lock"
-    local lock_age
+_alias_check_for_updates() {
+    local available now lock_mtime lock="$ALIAS_HOME/.update-check.lock"
+    [ "${ALIAS_AUTO_UPDATE:-true}" = "false" ] && return 0
+    [ "$ALIAS_VERSION" = "latest" ] && return 0
+    [ "$ALIAS_REPO_URL" = "https://raw.githubusercontent.com/thinhngotony/alias" ] || return 0
 
-    # Allow users to opt-out of auto-updates
-    if [ "${ALIAS_AUTO_UPDATE:-true}" = "false" ]; then
-        return 0
-    fi
-
-    # Rate-limit the background network check and serialize its timestamp.
-    if ! _alias_update_check_due; then
-        return 0
-    fi
-    mkdir -p "$ALIAS_HOME" 2>/dev/null || return 0
-
-    if [ -d "$check_lock" ]; then
-        if [ -f "$check_lock/pid" ]; then
-            lock_age=$(_alias_file_age "$check_lock/pid") || lock_age=0
-            if [ "$lock_age" -gt 120 ]; then
-                rm -rf "$check_lock" 2>/dev/null
-            else
-                return 0
-            fi
-        else
-            rm -rf "$check_lock" 2>/dev/null
+    if [ -f "$ALIAS_HOME/.update-available" ]; then
+        IFS= read -r available < "$ALIAS_HOME/.update-available"
+        if [ "$available" != "$ALIAS_VERSION" ]; then
+            printf 'Hyber Alias: release v%s available (installed v%s). Re-run the installer to update.\n' "$available" "$ALIAS_VERSION"
         fi
     fi
 
-    if ! mkdir "$check_lock" 2>/dev/null; then
-        return 0
+    _alias_update_check_due || return 0
+    if ! mkdir "$lock" 2>/dev/null; then
+        now=$(date +%s) || return 0
+        lock_mtime=$(_alias_file_mtime "$lock") || return 0
+        [ "$((now - lock_mtime))" -ge 120 ] || return 0
+        rmdir "$lock" 2>/dev/null || return 0
+        mkdir "$lock" 2>/dev/null || return 0
     fi
-    if ! printf '%s\n' "$$" > "$check_lock/pid" 2>/dev/null; then
-        rm -rf "$check_lock" 2>/dev/null
-        return 0
-    fi
-
-    # Re-check after taking the lock so concurrent shells do not all spawn jobs.
     if ! _alias_update_check_due; then
-        rm -rf "$check_lock" 2>/dev/null
+        rmdir "$lock" 2>/dev/null
         return 0
     fi
-    if ! touch "$ALIAS_HOME/.update-check" 2>/dev/null; then
-        rm -rf "$check_lock" 2>/dev/null
+    if ! touch "$ALIAS_HOME/.update-check"; then
+        rmdir "$lock" 2>/dev/null
         return 0
     fi
-    rm -rf "$check_lock" 2>/dev/null
+    rmdir "$lock" 2>/dev/null
 
-    # Use nohup with full redirection to avoid any job control messages
+    # Only release metadata is fetched; installed code never changes during startup.
     # shellcheck disable=SC2016
     (nohup sh -c '
-        ALIAS_HOME="$HOME/.alias"
-        ALIAS_REPO_URL="${ALIAS_REPO_URL:-https://raw.githubusercontent.com/thinhngotony/alias}"
-        # Always check main branch for latest loader
-        REPO="${ALIAS_REPO_URL}/main"
-        LOCK_DIR="$ALIAS_HOME/.update.lock"
-
-        # Atomic lock using mkdir (POSIX-safe)
-        # Clean stale locks older than 120 seconds
-        if [ -d "$LOCK_DIR" ]; then
-            lock_age=0
-            if [ -f "$LOCK_DIR/pid" ]; then
-                # Cross-platform stat: try GNU stat first, then BSD stat (macOS)
-                lock_mtime=$(stat -c %Y "$LOCK_DIR/pid" 2>/dev/null || stat -f %m "$LOCK_DIR/pid" 2>/dev/null || echo "0")
-                lock_age=$(( $(date +%s) - lock_mtime ))
-            fi
-            if [ "$lock_age" -gt 120 ]; then
-                rm -rf "$LOCK_DIR" 2>/dev/null
-            else
-                exit 0
-            fi
-        fi
-
-        if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-            exit 0
-        fi
-        echo $$ > "$LOCK_DIR/pid" 2>/dev/null
-
-        # Use mktemp for unpredictable temp file
-        loader_tmp=$(mktemp "$ALIAS_HOME/load.sh.XXXXXX") || { rm -rf "$LOCK_DIR" 2>/dev/null; exit 1; }
-
-        # Download with HTTPS enforcement and proper error handling
-        if curl -sfS --proto "=https" --connect-timeout 3 --max-time 5 "$REPO/load.sh" -o "$loader_tmp" 2>/dev/null && [ -s "$loader_tmp" ]; then
-            if ! cmp -s "$loader_tmp" "$ALIAS_HOME/load.sh" 2>/dev/null; then
-                if chmod +x "$loader_tmp" 2>/dev/null && mv "$loader_tmp" "$ALIAS_HOME/load.sh" 2>/dev/null; then
-                    : # Success
-                else
-                    rm -f "$loader_tmp" 2>/dev/null
-                fi
-            else
-                rm -f "$loader_tmp" 2>/dev/null
-            fi
+        latest=$(curl -sfS --proto "=https" --connect-timeout 3 --max-time 5 \
+            https://api.github.com/repos/thinhngotony/alias/releases/latest 2>/dev/null |
+            sed -n "s/.*\"tag_name\"[[:space:]]*:[[:space:]]*\"v\\([0-9][0-9.]*\\)\".*/\\1/p")
+        [ -n "$latest" ] || exit 0
+        marker="$HOME/.alias/.update-available"
+        if [ "$latest" = "$1" ]; then
+            rm -f "$marker"
         else
-            rm -f "$loader_tmp" 2>/dev/null
+            tmp=$(mktemp "$marker.XXXXXX") || exit 1
+            printf "%s\n" "$latest" > "$tmp" && mv "$tmp" "$marker" || rm -f "$tmp"
         fi
-
-        rm -rf "$LOCK_DIR" 2>/dev/null
-    ' >/dev/null 2>&1 &)
+    ' sh "$ALIAS_VERSION" </dev/null >/dev/null 2>&1 &)
 }
 
-# Run the self-update check in the background when its hourly interval expires.
-_alias_self_update
+_alias_check_for_updates
 
+ALIAS_CACHE_DIR="$ALIAS_HOME/cache"
+if [ "${HYBER_CACHE_LAYOUT:-}" = "release" ]; then
+    ALIAS_CACHE_DIR="$ALIAS_HOME/releases/v$ALIAS_VERSION"
+fi
 
-# =============================================================================
-# Download and cache aliases if online, then source from cache
-# Cached alias modules are refreshed at most every five minutes.
-# =============================================================================
-_alias_cleanup_download_temps() {
-    [ -d "$ALIAS_HOME/cache" ] || return 0
-    # Remove interrupted downloads after active curl processes have timed out.
-    find "$ALIAS_HOME/cache" -maxdepth 1 -type f -name '*.sh.*' -mmin +10 -exec rm -f {} + 2>/dev/null || true
-}
-
-_alias_download() {
-    local name="$1"
-    local url="$REPO/aliases/${name}.sh"
-    local cache="$ALIAS_HOME/cache/${name}.sh"
-    local now mtime
-
-    mkdir -p "$ALIAS_HOME/cache"
-
-    if [ -f "$cache" ]; then
-        now=$(date +%s) || now=0
-        mtime=$(_alias_file_mtime "$cache") || mtime=""
-        if [ -n "$mtime" ] && [ "$((now - mtime))" -lt "$_ALIAS_CACHE_TTL" ]; then
-            # shellcheck source=/dev/null
-            source "$cache"
-            return $?
-        fi
-    fi
-
-    # Use mktemp for safe temp file
-    local tmp
-    tmp=$(mktemp "$ALIAS_HOME/cache/${name}.sh.XXXXXX") || return 1
-
-    # Download with HTTPS enforcement
-    if curl -sfS --proto '=https' --connect-timeout 5 --max-time 5 "${url}" -o "$tmp" 2>/dev/null && [ -s "$tmp" ]; then
-        mv "$tmp" "$cache" 2>/dev/null || rm -f "$tmp" 2>/dev/null
-    else
-        rm -f "$tmp" 2>/dev/null
-    fi
-
-    # Source from cache if exists, including a stale copy when offline.
+for _alias_name in git k8s system secrets ai; do
+    _alias_cache="$ALIAS_CACHE_DIR/${_alias_name}.sh"
     # shellcheck source=/dev/null
-    [ -f "$cache" ] && source "$cache"
-}
-
-_alias_cleanup_download_temps
-
-# Load default aliases
-_alias_download "git"
-_alias_download "k8s"
-_alias_download "system"
-_alias_download "secrets"
-_alias_download "ai"
-
-
+    [ -f "$_alias_cache" ] && source "$_alias_cache"
+done
 # =============================================================================
 # Source user custom aliases
 # Only source regular .sh files (no symlinks, no directories)
@@ -285,7 +165,7 @@ _alias_collect_alias_file_matches() {
 _alias_collect_alias_matches() {
     local alias_name="$1"
     local output_file="$2"
-    _alias_collect_alias_file_matches "$alias_name" "System" "$ALIAS_HOME/cache" "$output_file"
+    _alias_collect_alias_file_matches "$alias_name" "System" "$ALIAS_CACHE_DIR" "$output_file"
     _alias_collect_alias_file_matches "$alias_name" "Custom" "$ALIAS_HOME/custom" "$output_file"
 }
 

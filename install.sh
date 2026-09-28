@@ -13,26 +13,20 @@ ALIAS_HOME="$HOME/.alias"
 ALIAS_REPO_URL="${ALIAS_REPO_URL:-https://raw.githubusercontent.com/thinhngotony/alias}"
 
 # Fetch latest version from GitHub releases
-VERSION=$(curl -sfS "https://api.github.com/repos/thinhngotony/alias/releases/latest" 2>/dev/null \
+VERSION=$(curl -sfS --proto '=https' --connect-timeout 5 --max-time 10 "https://api.github.com/repos/thinhngotony/alias/releases/latest" 2>/dev/null \
     | grep '"tag_name"' | head -1 | sed 's/.*"tag_name" *: *"//;s/".*//' | sed 's/^v//')
 
-# Validate version is semver-like (digits and dots only)
-if ! printf '%s' "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
-    VERSION="latest"
+if ! printf '%s' "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+    echo "Failed to determine the latest release; existing aliases were not changed." >&2
+    exit 1
 fi
 
-# Use tag-based URL for immutable CDN content (no stale cache issues)
-# Fall back to main branch if version detection failed
-if [ "$VERSION" != "latest" ]; then
-    REPO="${ALIAS_REPO_URL}/v${VERSION}"
-else
-    REPO="${ALIAS_REPO_URL}/main"
-fi
+# Install from one immutable release, never from a moving branch.
+REPO="${ALIAS_REPO_URL}/v${VERSION}"
 
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
 CYAN='\033[0;36m'
 DIM='\033[2m'
 BOLD='\033[1m'
@@ -100,7 +94,6 @@ detect_active_shell() {
 
 OS=$(detect_os)
 SHELL_TYPE=$(detect_active_shell)
-DOWNLOAD_FAILURES=0
 
 # Detect available shells
 HAS_BASH=false
@@ -125,63 +118,65 @@ echo ""
 # Install
 echo -e "${DIM}Installing${NC}"
 
-# Create directories
-mkdir -p "$ALIAS_HOME/cache" "$ALIAS_HOME/custom"
+mkdir -p "$ALIAS_HOME/releases" "$ALIAS_HOME/custom"
 echo -e "  ${CHECK} Created ${DIM}~/.alias${NC}"
 
 # Safe download helper
 _safe_download() {
-    local url="$1"
-    local dest="$2"
-    local label="$3"
-    local required="${4:-false}"
-
-    local dest_dir
-    dest_dir=$(dirname "$dest")
-    local tmp
-    tmp=$(mktemp "$dest_dir/.download.XXXXXX") || {
-        if [ "$required" = "true" ]; then
-            echo -e "  ${RED}✗${NC} Failed to create temp file for $label"
-            return 1
-        fi
-        DOWNLOAD_FAILURES=$((DOWNLOAD_FAILURES + 1))
-        return 1
-    }
-
-    # Download with HTTPS enforcement
-    if curl -sfS --proto '=https' "${url}" -o "$tmp" 2>/dev/null && [ -s "$tmp" ]; then
-        mv "$tmp" "$dest" 2>/dev/null
-        return 0
-    else
-        rm -f "$tmp" 2>/dev/null
-        if [ "$required" = "true" ]; then
-            echo -e "  ${RED}✗${NC} Failed to download $label"
-            return 1
-        fi
-        DOWNLOAD_FAILURES=$((DOWNLOAD_FAILURES + 1))
-        echo -e "  ${YELLOW}⚠${NC}  Failed to download $label (non-critical)"
-        return 1
+    local url="$1" dest="$2" label="$3" tmp
+    tmp=$(mktemp "$(dirname "$dest")/.download.XXXXXX") || return 1
+    if curl -sfS --proto '=https' --connect-timeout 5 --max-time 30 "$url" -o "$tmp" 2>/dev/null && [ -s "$tmp" ]; then
+        mv "$tmp" "$dest" && return 0
     fi
+    rm -f "$tmp"
+    echo -e "  ${RED}✗${NC} Failed to download $label" >&2
+    return 1
 }
 
-# Download bash/zsh loader + aliases
+# Fetch a complete release before changing any installed files.
+if [ -d "$ALIAS_HOME/.install.lock" ]; then
+    lock_mtime=$(stat -c %Y "$ALIAS_HOME/.install.lock" 2>/dev/null || stat -f %m "$ALIAS_HOME/.install.lock" 2>/dev/null)
+    now=$(date +%s)
+    if [ -n "$lock_mtime" ] && [ "$((now - lock_mtime))" -gt 600 ]; then
+        rmdir "$ALIAS_HOME/.install.lock" 2>/dev/null || true
+    fi
+fi
+if ! mkdir "$ALIAS_HOME/.install.lock" 2>/dev/null; then
+    echo "Another installation is in progress." >&2
+    exit 1
+fi
+stage=$(mktemp -d "$ALIAS_HOME/releases/.install.XXXXXX") || {
+    rmdir "$ALIAS_HOME/.install.lock"
+    exit 1
+}
+trap 'rm -rf "$stage"; rmdir "$ALIAS_HOME/.install.lock" 2>/dev/null' EXIT
+
+_safe_download "$REPO/load.sh" "$stage/load.sh" "loader"
+for name in git k8s system secrets ai; do
+    _safe_download "$REPO/aliases/$name.sh" "$stage/$name.sh" "$name aliases"
+done
+_safe_download "$REPO/aliases/fish.fish" "$stage/fish.fish" "fish aliases"
+chmod +x "$stage/load.sh"
+
+release="$ALIAS_HOME/releases/v$VERSION"
+if [ ! -d "$release" ]; then
+    mv "$stage" "$release"
+else
+    for name in load git k8s system secrets ai; do
+        if [ ! -s "$release/$name.sh" ]; then
+            echo "Installed release is incomplete: $release" >&2
+            exit 1
+        fi
+    done
+    [ -s "$release/fish.fish" ]
+fi
+
 if [ "$HAS_BASH" = true ] || [ "$HAS_ZSH" = true ]; then
-    if ! _safe_download "$REPO/load.sh" "$ALIAS_HOME/load.sh" "loader" "true"; then
-        exit 1
-    fi
-    chmod +x "$ALIAS_HOME/load.sh"
-
-    _safe_download "$REPO/aliases/git.sh" "$ALIAS_HOME/cache/git.sh" "git aliases"
-    _safe_download "$REPO/aliases/k8s.sh" "$ALIAS_HOME/cache/k8s.sh" "k8s aliases"
-    _safe_download "$REPO/aliases/system.sh" "$ALIAS_HOME/cache/system.sh" "system aliases"
-    _safe_download "$REPO/aliases/secrets.sh" "$ALIAS_HOME/cache/secrets.sh" "secrets aliases"
-    _safe_download "$REPO/aliases/ai.sh" "$ALIAS_HOME/cache/ai.sh" "ai aliases"
-
-    if [ "$DOWNLOAD_FAILURES" -gt 0 ]; then
-        echo -e "  ${YELLOW}⚠${NC}  Downloaded aliases ($DOWNLOAD_FAILURES file(s) failed, will retry on next shell start)"
-    else
-        echo -e "  ${CHECK} Downloaded aliases"
-    fi
+    loader_tmp=$(mktemp "$ALIAS_HOME/load.sh.XXXXXX")
+    cp "$release/load.sh" "$loader_tmp"
+    chmod +x "$loader_tmp"
+    mv "$loader_tmp" "$ALIAS_HOME/load.sh"
+    echo -e "  ${CHECK} Downloaded aliases"
 fi
 
 # Configure bash
@@ -215,18 +210,24 @@ fi
 # Configure fish
 if [ "$HAS_FISH" = true ]; then
     mkdir -p "$HOME/.config/fish/conf.d"
-    if _safe_download "$REPO/aliases/fish.fish" "$HOME/.config/fish/conf.d/hyber-alias.fish" "fish aliases"; then
-        echo -e "  ${CHECK} Configured ${DIM}fish (conf.d)${NC}"
-    fi
+    fish_tmp=$(mktemp "$HOME/.config/fish/conf.d/.hyber-alias.XXXXXX")
+    cp "$release/fish.fish" "$fish_tmp"
+    mv "$fish_tmp" "$HOME/.config/fish/conf.d/hyber-alias.fish"
+    echo -e "  ${CHECK} Configured ${DIM}fish (conf.d)${NC}"
 fi
 
 # Save environment
-cat > "$ALIAS_HOME/env.sh" << EOF
+env_tmp=$(mktemp "$ALIAS_HOME/env.sh.XXXXXX")
+cat > "$env_tmp" << EOF
 export HYBER_VERSION="${VERSION}"
+export HYBER_CACHE_LAYOUT="release"
 export HYBER_SHELL="${SHELL_TYPE}"
 export HYBER_OS="${OS}"
 EOF
-chmod 600 "$ALIAS_HOME/env.sh"
+chmod 600 "$env_tmp"
+mv "$env_tmp" "$ALIAS_HOME/env.sh"
+rm -f "$ALIAS_HOME/.update-available"
+touch "$ALIAS_HOME/.update-check"
 echo -e "  ${CHECK} Saved environment"
 
 echo ""

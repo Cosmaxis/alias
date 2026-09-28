@@ -2,52 +2,54 @@
 
 $AliasHome = "$env:USERPROFILE\.alias"
 
-# Allow custom repository URL for forks/self-hosting
-$AliasRepoUrl = if ($env:ALIAS_REPO_URL) { $env:ALIAS_REPO_URL } else { "https://raw.githubusercontent.com/thinhngotony/alias" }
-$Repo = "$AliasRepoUrl/main"
-
-# Source environment
+# Source the installed release. Network checks only discover newer versions.
 if (Test-Path "$AliasHome\env.ps1") {
     . "$AliasHome\env.ps1"
 }
 $AliasVersion = if ($env:HYBER_VERSION) { $env:HYBER_VERSION } else { "latest" }
 
-# Self-update loader in background (can be disabled with $env:ALIAS_AUTO_UPDATE = "false")
-if ($env:ALIAS_AUTO_UPDATE -ne "false") {
-    $selfUpdateJob = Start-Job -ScriptBlock {
-        param($Repo, $AliasHome)
-        $lockDir = "$AliasHome\.update.lock"
-        try {
-            # Atomic lock using directory creation
-            if (Test-Path $lockDir) {
-                $lockAge = (New-TimeSpan -Start (Get-Item $lockDir).LastWriteTime -End (Get-Date)).TotalSeconds
-                if ($lockAge -gt 120) {
-                    Remove-Item $lockDir -Recurse -Force -ErrorAction SilentlyContinue
-                } else {
-                    return
-                }
-            }
-            New-Item -ItemType Directory -Path $lockDir -ErrorAction Stop | Out-Null
-
-            $loaderUrl = "$Repo/load.ps1"
-            $loaderTmp = [System.IO.Path]::GetTempFileName()
-            $loaderPath = "$AliasHome\load.ps1"
-            Invoke-WebRequest -Uri $loaderUrl -OutFile $loaderTmp -TimeoutSec 5 -ErrorAction Stop
-            if ((Test-Path $loaderTmp) -and (Get-Item $loaderTmp).Length -gt 0) {
-                $newContent = Get-Content $loaderTmp -Raw
-                $oldContent = if (Test-Path $loaderPath) { Get-Content $loaderPath -Raw } else { "" }
-                if ($newContent -ne $oldContent) {
-                    Move-Item $loaderTmp $loaderPath -Force
-                } else {
-                    Remove-Item $loaderTmp -Force -ErrorAction SilentlyContinue
-                }
-            }
-        } catch {
-            Remove-Item $loaderTmp -Force -ErrorAction SilentlyContinue
-        } finally {
-            Remove-Item $lockDir -Recurse -Force -ErrorAction SilentlyContinue
+if ($env:ALIAS_AUTO_UPDATE -ne "false" -and $AliasVersion -ne "latest" -and -not $env:ALIAS_REPO_URL) {
+    $notice = "$AliasHome\.update-available"
+    if (Test-Path $notice) {
+        $available = (Get-Content $notice -Raw).Trim()
+        if ($available -ne $AliasVersion) {
+            Write-Host "Hyber Alias: release v$available available (installed v$AliasVersion). Re-run the installer to update."
         }
-    } -ArgumentList $Repo, $AliasHome
+    }
+
+    $check = "$AliasHome\.update-check"
+    if (-not (Test-Path $check) -or (Get-Item $check).LastWriteTime -lt (Get-Date).AddDays(-1)) {
+        $lock = "$AliasHome\.update-check.lock"
+        if ((Test-Path $lock) -and (Get-Item $lock).LastWriteTime -lt (Get-Date).AddMinutes(-2)) {
+            Remove-Item $lock -Force -ErrorAction SilentlyContinue
+        }
+        $ownsLock = $false
+        try {
+            New-Item -ItemType Directory -Path $lock -ErrorAction Stop | Out-Null
+            $ownsLock = $true
+            if (-not (Test-Path $check) -or (Get-Item $check).LastWriteTime -lt (Get-Date).AddDays(-1)) {
+                [System.IO.File]::WriteAllText($check, "")
+                Start-Job -ArgumentList $AliasHome, $AliasVersion -ScriptBlock {
+                    param($homeDir, $installed)
+                    try {
+                        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/thinhngotony/alias/releases/latest" -TimeoutSec 5
+                        if ($release.tag_name -match '^v(\d+\.\d+\.\d+)$') {
+                            $marker = Join-Path $homeDir ".update-available"
+                            if ($Matches[1] -eq $installed) {
+                                Remove-Item $marker -Force -ErrorAction SilentlyContinue
+                            } else {
+                                $tmp = Join-Path $homeDir (".update-available." + [guid]::NewGuid().ToString("N"))
+                                Set-Content $tmp $Matches[1]
+                                Move-Item $tmp $marker -Force
+                            }
+                        }
+                    } catch { }
+                } | Out-Null
+            }
+        } catch { } finally {
+            if ($ownsLock) { Remove-Item $lock -Force -ErrorAction SilentlyContinue }
+        }
+    }
 }
 
 # =============================================================================

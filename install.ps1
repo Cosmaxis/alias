@@ -10,14 +10,13 @@ $ErrorActionPreference = "Stop"
 try {
     $release = Invoke-RestMethod -Uri "https://api.github.com/repos/thinhngotony/alias/releases/latest" -TimeoutSec 5
     $Version = $release.tag_name -replace '^v', ''
-    # Validate version is semver-like
-    if ($Version -notmatch '^\d+\.\d+\.\d+') {
-        $Version = "latest"
+    if ($Version -notmatch '^\d+\.\d+\.\d+$') {
+        throw "Invalid release tag"
     }
 } catch {
-    $Version = "latest"
+    throw "Failed to determine the latest release; existing aliases were not changed: $_"
 }
-$Repo = "https://raw.githubusercontent.com/thinhngotony/alias/main"
+$Repo = "https://raw.githubusercontent.com/thinhngotony/alias/v$Version"
 $AliasHome = "$env:USERPROFILE\.alias"
 
 # Check execution policy (skip in CI environments)
@@ -62,7 +61,7 @@ Write-Host "  " -NoNewline; Write-Host "✓" -ForegroundColor Green -NoNewline; 
 # Download files using temp file for atomicity
 try {
     $tmpFile = [System.IO.Path]::GetTempFileName()
-    Invoke-WebRequest -Uri "$Repo/load.ps1" -OutFile $tmpFile -UseBasicParsing
+    Invoke-WebRequest -Uri "$Repo/load.ps1" -OutFile $tmpFile -UseBasicParsing -TimeoutSec 30
     if ((Get-Item $tmpFile).Length -gt 0) {
         Move-Item $tmpFile "$AliasHome\load.ps1" -Force
     } else {
@@ -93,12 +92,16 @@ if ($null -eq $ProfileContent -or $ProfileContent -notmatch "\.alias\\load\.ps1"
     Write-Host "  " -NoNewline; Write-Host "✓" -ForegroundColor Green -NoNewline; Write-Host " Already configured"
 }
 
-# Save environment
+# Save the version only after the complete loader has been installed.
+$envTmp = Join-Path $AliasHome ("env.ps1." + [guid]::NewGuid().ToString("N"))
 @"
 `$env:HYBER_SHELL = "powershell"
 `$env:HYBER_OS = "windows"
 `$env:HYBER_VERSION = "$Version"
-"@ | Out-File -FilePath "$AliasHome\env.ps1" -Encoding UTF8
+"@ | Out-File -FilePath $envTmp -Encoding UTF8
+Move-Item $envTmp "$AliasHome\env.ps1" -Force
+Remove-Item "$AliasHome\.update-available" -Force -ErrorAction SilentlyContinue
+[System.IO.File]::WriteAllText("$AliasHome\.update-check", "")
 Write-Host "  " -NoNewline; Write-Host "✓" -ForegroundColor Green -NoNewline; Write-Host " Saved environment"
 
 Write-Host ""

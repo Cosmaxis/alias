@@ -119,44 +119,134 @@ jobs:
 
           rm -rf "$HOME/.alias/custom/testcat.sh"
 
-      - name: Test alias cache freshness
+      - name: Test offline shell startup with old cache
         run: |
           test_home=$(mktemp -d)
           fake_bin=$(mktemp -d)
-          mkdir -p "$test_home/.alias/cache" "$test_home/.alias/custom"
+          mkdir -p "$test_home/.alias/cache" "$fake_bin"
           for name in git k8s system secrets ai; do
             printf "alias cache_%s='true'\n" "$name" > "$test_home/.alias/cache/$name.sh"
+            touch -t 200001010000 "$test_home/.alias/cache/$name.sh"
           done
-          printf '%s\n' "stale temp" > "$test_home/.alias/cache/git.sh.CQTeOX"
-          touch -t 200001010000 "$test_home/.alias/cache/git.sh.CQTeOX"
-
-          printf '%s\n' \
-            '#!/bin/sh' \
-            'out=""' \
-            'while [ "$#" -gt 0 ]; do' \
-            '    if [ "$1" = "-o" ]; then' \
-            '        out="$2"' \
-            '        shift 2' \
-            '    else' \
-            '        shift' \
-            '    fi' \
-            'done' \
-            'printf "%s\n" curl >> "$HOME/.alias/curl-count"' \
-            'printf "%s\n" "alias refreshed=\"true\"" > "$out"' \
-            > "$fake_bin/curl"
+          printf '%s\n' '#!/bin/sh' 'echo called >> "$HOME/.alias/curl-count"; exit 1' > "$fake_bin/curl"
           chmod +x "$fake_bin/curl"
 
           HOME="$test_home" PATH="$fake_bin:$PATH" ALIAS_AUTO_UPDATE=false \
-            bash -c 'source "$GITHUB_WORKSPACE/load.sh"'
-          [ ! -e "$test_home/.alias/cache/git.sh.CQTeOX" ] || { echo "FAIL: stale temp file remains"; exit 1; }
-          [ ! -e "$test_home/.alias/curl-count" ] || { echo "FAIL: fresh cache was downloaded"; exit 1; }
-
-          touch -t 200001010000 "$test_home/.alias/cache/git.sh"
-          HOME="$test_home" PATH="$fake_bin:$PATH" ALIAS_AUTO_UPDATE=false \
-            bash -c 'source "$GITHUB_WORKSPACE/load.sh"'
-          [ "$(wc -l < "$test_home/.alias/curl-count" | tr -d ' ')" -eq 1 ] || { echo "FAIL: stale cache was not refreshed once"; exit 1; }
-          echo "PASS: cache freshness and temp cleanup"
+            bash -c '
+              source "$GITHUB_WORKSPACE/load.sh"
+              alias cache_git >/dev/null
+              alias cache_ai >/dev/null
+            '
+          [ ! -e "$test_home/.alias/curl-count" ] || { echo "FAIL: shell startup used the network"; exit 1; }
+          echo "PASS: old aliases load without network"
           rm -rf "$test_home" "$fake_bin"
+
+      - name: Test failed upgrade preserves installed release
+        run: |
+          test_home=$(mktemp -d)
+          fake_bin=$(mktemp -d)
+          fresh_home=$(mktemp -d)
+          trap 'rm -rf "$test_home" "$fake_bin" "$fresh_home"' EXIT
+          mkdir -p "$test_home/.alias/cache"
+          cat > "$fake_bin/curl" <<'SH'
+          #!/bin/sh
+          out=""
+          url=""
+          while [ "$#" -gt 0 ]; do
+            case "$1" in
+              -o) out="$2"; shift 2 ;;
+              http*) url="$1"; shift ;;
+              *) shift ;;
+            esac
+          done
+          printf '%s\n' "$url" >> "$HOME/.alias/fetches"
+          case "$url" in
+            */releases/latest) printf '%s\n' '{"tag_name":"v2.0.0"}' ;;
+            */aliases/ai.sh) [ ! -f "$HOME/.alias/fail-download" ] && cp "$GITHUB_WORKSPACE/aliases/ai.sh" "$out" ;;
+            */aliases/*.sh) cp "$GITHUB_WORKSPACE/aliases/${url##*/}" "$out" ;;
+            */aliases/fish.fish) cp "$GITHUB_WORKSPACE/aliases/fish.fish" "$out" ;;
+            */load.sh) cp "$GITHUB_WORKSPACE/load.sh" "$out" ;;
+            *) exit 1 ;;
+          esac
+          SH
+          chmod +x "$fake_bin/curl"
+
+          for installer in install-universal.sh install.sh; do
+            runner=sh
+            rm -rf "$test_home/.alias/releases/v2.0.0"
+            [ "$installer" != install.sh ] || runner=bash
+            printf '%s\n' 'export HYBER_VERSION="1.0.0"' > "$test_home/.alias/env.sh"
+            printf '%s\n' "alias old_git='true'" > "$test_home/.alias/cache/git.sh"
+            printf '%s\n' '# old loader' > "$test_home/.alias/load.sh"
+            touch "$test_home/.alias/fail-download" "$test_home/.bashrc"
+            if HOME="$test_home" PATH="$fake_bin:$PATH" "$runner" "$installer" >/dev/null; then
+              echo "FAIL: incomplete upgrade succeeded in $installer"; exit 1
+            fi
+            HOME="$test_home" ALIAS_AUTO_UPDATE=false bash -c '
+              source "$HOME/.alias/env.sh"
+              source "$HOME/.alias/cache/git.sh"
+              [ "$HYBER_VERSION" = "1.0.0" ] && alias old_git >/dev/null
+            ' || { echo "FAIL: failed upgrade changed the active release"; exit 1; }
+
+            rm "$test_home/.alias/fail-download"
+            HOME="$test_home" PATH="$fake_bin:$PATH" "$runner" "$installer" >/dev/null
+            fetches_before=$(wc -l < "$test_home/.alias/fetches")
+            HOME="$test_home" ALIAS_AUTO_UPDATE=false bash -c '
+              source "$HOME/.alias/load.sh"
+              [ "$HYBER_VERSION" = "2.0.0" ] && alias ga >/dev/null
+            ' || { echo "FAIL: completed upgrade did not activate aliases"; exit 1; }
+            if command -v zsh >/dev/null 2>&1; then
+              HOME="$test_home" ALIAS_AUTO_UPDATE=false zsh -f -c '
+                source "$HOME/.alias/load.sh"
+                [[ "$HYBER_VERSION" == "2.0.0" ]] && alias ga >/dev/null
+              ' || { echo "FAIL: Zsh did not load the release"; exit 1; }
+            fi
+            [ "$(wc -l < "$test_home/.alias/fetches")" -eq "$fetches_before" ] || { echo "FAIL: shell startup fetched code"; exit 1; }
+          done
+          mkdir -p "$fresh_home/.alias"
+          touch "$fresh_home/.bashrc"
+          HOME="$fresh_home" PATH="$fake_bin:$PATH" sh install-universal.sh >/dev/null
+          HOME="$fresh_home" ALIAS_AUTO_UPDATE=false bash -c '
+            source "$HOME/.alias/load.sh"
+            [ "$HYBER_VERSION" = "2.0.0" ] && alias ga >/dev/null
+          ' || { echo "FAIL: clean install did not load aliases"; exit 1; }
+          echo "PASS: only a complete release is activated"
+
+      - name: Test daily release discovery does not block startup
+        run: |
+          test_home=$(mktemp -d)
+          fake_bin=$(mktemp -d)
+          trap 'rm -rf "$test_home" "$fake_bin"' EXIT
+          mkdir -p "$test_home/.alias/cache"
+          printf '%s\n' 'export HYBER_VERSION="1.0.0"' > "$test_home/.alias/env.sh"
+          printf '%s\n' "alias cached='true'" > "$test_home/.alias/cache/git.sh"
+          cat > "$fake_bin/curl" <<'SH'
+          #!/bin/sh
+          printf '%s\n' fetched >> "$HOME/.alias/fetches"
+          until [ -f "$HOME/.alias/unblock" ]; do sleep 0.05; done
+          printf '%s\n' '{"tag_name":"v2.0.0"}'
+          SH
+          chmod +x "$fake_bin/curl"
+
+          HOME="$test_home" PATH="$fake_bin:$PATH" bash -c '
+            source "$GITHUB_WORKSPACE/load.sh"
+            alias cached >/dev/null
+          '
+          [ ! -e "$test_home/.alias/.update-available" ] || { echo "FAIL: update blocked shell startup"; exit 1; }
+          touch "$test_home/.alias/unblock"
+          found=false
+          for attempt in $(seq 1 100); do
+            if [ -f "$test_home/.alias/.update-available" ]; then found=true; break; fi
+            sleep 0.05
+          done
+          [ "$found" = true ] || { echo "FAIL: release check did not finish"; exit 1; }
+          output=$(HOME="$test_home" PATH="$fake_bin:$PATH" bash -c 'source "$GITHUB_WORKSPACE/load.sh"')
+          case "$output" in
+            *v2.0.0*v1.0.0*) ;;
+            *) echo "FAIL: new release was not announced"; exit 1 ;;
+          esac
+          [ "$(wc -l < "$test_home/.alias/fetches" | tr -d ' ')" -eq 1 ] || { echo "FAIL: update check repeated"; exit 1; }
+          echo "PASS: daily check is nonblocking and rate-limited"
 
       - name: Test secrets encryption round-trip
         run: |
@@ -369,6 +459,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install release before adding fish
+        run: sh install-universal.sh
+
       - name: Install fish
         run: |
           sudo apt-get update
@@ -480,7 +573,7 @@ jobs:
             - Auto-detects active shell (even in Codespaces)
             - AES-256-CBC encrypted secret storage
             - Input validation prevents injection attacks
-            - Auto-update on shell start with atomic file operations
+            - Local aliases at shell startup; daily background release checks
 
             **Full Changelog**: https://github.com/thinhngotony/alias/compare/v1.0.0...${{ steps.version.outputs.VERSION }}
         env:
