@@ -14,7 +14,18 @@ try {
         throw "Invalid release tag"
     }
 } catch {
-    throw "Failed to determine the latest release; existing aliases were not changed: $_"
+    try {
+        $page = Invoke-WebRequest -Uri "https://github.com/thinhngotony/alias/releases/latest" -UseBasicParsing -TimeoutSec 10
+        $finalUri = if ($page.BaseResponse.ResponseUri) {
+            $page.BaseResponse.ResponseUri.AbsoluteUri
+        } else {
+            $page.BaseResponse.RequestMessage.RequestUri.AbsoluteUri
+        }
+        if ($finalUri -notmatch '/releases/tag/v(\d+\.\d+\.\d+)$') { throw "Invalid release redirect" }
+        $Version = $Matches[1]
+    } catch {
+        throw "Failed to determine the latest release; existing aliases were not changed: $_"
+    }
 }
 $Repo = "https://raw.githubusercontent.com/thinhngotony/alias/v$Version"
 $AliasHome = "$env:USERPROFILE\.alias"

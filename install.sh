@@ -17,6 +17,11 @@ VERSION=$(curl -sfS --proto '=https' --connect-timeout 5 --max-time 10 "https://
     | grep '"tag_name"' | head -1 | sed 's/.*"tag_name" *: *"//;s/".*//' | sed 's/^v//')
 
 if ! printf '%s' "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+    release_url=$(curl -fsSL --proto '=https' --proto-redir '=https' --connect-timeout 5 --max-time 10 \
+        -o /dev/null -w '%{url_effective}' "https://github.com/thinhngotony/alias/releases/latest" 2>/dev/null)
+    VERSION=${release_url##*/v}
+fi
+if ! printf '%s' "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
     echo "Failed to determine the latest release; existing aliases were not changed." >&2
     exit 1
 fi

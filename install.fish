@@ -3,15 +3,21 @@
 # Hyber Alias Installer - Fish Shell
 # =============================================================================
 
-set REPO "https://raw.githubusercontent.com/thinhngotony/alias/main"
 set ALIAS_HOME "$HOME/.alias"
 
 # Fetch latest version from GitHub releases
-set VERSION (curl -sfS "https://api.github.com/repos/thinhngotony/alias/releases/latest" 2>/dev/null \
+set VERSION (curl -sfS --proto '=https' --connect-timeout 5 --max-time 10 "https://api.github.com/repos/thinhngotony/alias/releases/latest" 2>/dev/null \
     | grep '"tag_name"' | head -1 | sed 's/.*"tag_name" *: *"//;s/".*//' | sed 's/^v//')
-if test -z "$VERSION"
-    set VERSION "latest"
+if not string match -rq '^[0-9]+\.[0-9]+\.[0-9]+$' -- "$VERSION"
+    set release_url (curl -fsSL --proto '=https' --proto-redir '=https' --connect-timeout 5 --max-time 10 \
+        -o /dev/null -w '%{url_effective}' "https://github.com/thinhngotony/alias/releases/latest" 2>/dev/null)
+    set VERSION (string replace -r '^.*/releases/tag/v([0-9]+\.[0-9]+\.[0-9]+)$' '$1' -- "$release_url")
 end
+if not string match -rq '^[0-9]+\.[0-9]+\.[0-9]+$' -- "$VERSION"
+    echo "Failed to determine the latest release; existing aliases were not changed." >&2
+    exit 1
+end
+set REPO "https://raw.githubusercontent.com/thinhngotony/alias/v$VERSION"
 
 # Header
 echo ""
@@ -35,17 +41,33 @@ mkdir -p $ALIAS_HOME
 mkdir -p ~/.config/fish/conf.d
 echo "      ✓ Created directories"
 
-# Download fish aliases
-curl -sfS "$REPO/aliases/fish.fish" -o ~/.config/fish/conf.d/hyber-alias.fish 2>/dev/null
-or begin
+# Download to a temporary file before replacing the installed aliases.
+set alias_tmp (mktemp ~/.config/fish/conf.d/.hyber-alias.XXXXXX)
+if not curl -sfS --proto '=https' --connect-timeout 5 --max-time 30 "$REPO/aliases/fish.fish" -o "$alias_tmp" 2>/dev/null; or not test -s "$alias_tmp"
+    rm -f "$alias_tmp"
     echo "      ✗ Failed to download"
+    exit 1
+end
+if not mv "$alias_tmp" ~/.config/fish/conf.d/hyber-alias.fish
+    rm -f "$alias_tmp"
+    echo "      ✗ Failed to install aliases"
     exit 1
 end
 echo "      ✓ Downloaded aliases"
 
-# Save environment
-echo "set -gx HYBER_VERSION \"$VERSION\"" > $ALIAS_HOME/env.fish
-echo "set -gx HYBER_SHELL \"fish\"" >> $ALIAS_HOME/env.fish
+# Save the version after the aliases have been installed.
+set env_tmp (mktemp "$ALIAS_HOME/env.fish.XXXXXX")
+or exit 1
+printf 'set -gx HYBER_VERSION "%s"\nset -gx HYBER_SHELL "fish"\n' "$VERSION" > "$env_tmp"
+or begin
+    rm -f "$env_tmp"
+    exit 1
+end
+mv "$env_tmp" "$ALIAS_HOME/env.fish"
+or begin
+    rm -f "$env_tmp"
+    exit 1
+end
 echo "      ✓ Saved environment"
 
 echo ""
